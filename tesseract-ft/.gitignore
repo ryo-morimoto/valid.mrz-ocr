@@ -1,0 +1,9 @@
+# Trained models
+models/
+*.traineddata
+
+# Training data (generated)
+training_data/
+
+# Output
+output/
