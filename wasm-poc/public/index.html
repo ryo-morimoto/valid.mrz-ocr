@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MRZ WASM PoC 検証 - YOLOv8 + Tesseract.js</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .status { font-weight: bold; }
+    .success { color: #22c55e; }
+    .error { color: #ef4444; }
+    .pending { color: #f59e0b; }
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 13px;
+      max-height: 400px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+    th { background: #f9f9f9; }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .metric { font-family: monospace; }
+    .architecture {
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 4px;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .architecture code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 MRZ WASM PoC 検証</h1>
+
+  <div class="card architecture">
+    <strong>イベント駆動アーキテクチャ</strong>
+    <p>
+      <code>YOLOv8-nano</code> (Detection, 毎フレーム ~100ms) →
+      安定検出時 →
+      <code>Tesseract.js</code> (Recognition, ワンショット ~200ms)
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>検証項目</h2>
+    <table>
+      <tr>
+        <th>項目</th>
+        <th>成功基準</th>
+        <th>状態</th>
+      </tr>
+      <tr>
+        <td>YOLOv8-nano ONNX → WASM</td>
+        <td>推論 &lt; 200ms</td>
+        <td id="yolo-status" class="status pending">⏳ 未実行</td>
+      </tr>
+      <tr>
+        <td>Tesseract.js (WASM)</td>
+        <td>認識 &lt; 500ms</td>
+        <td id="tesseract-status" class="status pending">⏳ 未実行</td>
+      </tr>
+      <tr>
+        <td>合計パイプライン時間</td>
+        <td>&lt; 700ms</td>
+        <td id="speed-status" class="status pending">⏳ 未計測</td>
+      </tr>
+      <tr>
+        <td>メモリ使用量</td>
+        <td>&lt; 500MB</td>
+        <td id="memory-status" class="status pending">⏳ 未計測</td>
+      </tr>
+    </table>
+
+    <button id="run-btn" onclick="runAllTests()">🚀 検証実行</button>
+  </div>
+
+  <div class="card">
+    <h2>詳細ログ</h2>
+    <pre id="log">検証を開始するには上のボタンをクリックしてください。
+
+必要なファイル:
+- models/yolov8n.onnx
+
+モデルがない場合は以下を実行:
+  cd wasm-poc
+  python scripts/export_yolo.py
+
+Tesseract.js は CDN から自動ロードされます。
+</pre>
+  </div>
+
+  <div class="card">
+    <h2>計測結果</h2>
+    <table>
+      <tr>
+        <th>コンポーネント</th>
+        <th>ロード時間</th>
+        <th>推論/認識時間</th>
+        <th>備考</th>
+      </tr>
+      <tr>
+        <td>YOLOv8-nano (Detection)</td>
+        <td id="yolo-load" class="metric">-</td>
+        <td id="yolo-infer" class="metric">-</td>
+        <td>毎フレーム実行</td>
+      </tr>
+      <tr>
+        <td>Tesseract.js (Recognition)</td>
+        <td id="tesseract-load" class="metric">-</td>
+        <td id="tesseract-infer" class="metric">-</td>
+        <td>安定検出時のみ</td>
+      </tr>
+      <tr style="font-weight: bold;">
+        <td>合計 (ワンショット)</td>
+        <td id="total-load" class="metric">-</td>
+        <td id="total-infer" class="metric">-</td>
+        <td id="total-mem" class="metric">-</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Tesseract.js v5 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <script type="module">
+    /**
+     * MRZ WASM PoC 検証スクリプト
+     *
+     * イベント駆動アーキテクチャの検証:
+     * 1. YOLOv8-nano: MRZ 領域検出（毎フレーム実行想定）
+     * 2. Tesseract.js: MRZ 文字認識（安定検出時のみ実行）
+     *
+     * 目標: Detection <200ms + Recognition <500ms = Total <700ms
+     */
+    import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/esm/ort.min.js';
+
+    // WASM ファイルの CDN パス設定
+    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/';
+
+    // SIMD と マルチスレッド有効化
+    ort.env.wasm.simd = true;
+    ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+
+    const logEl = document.getElementById('log');
+    let logText = '';
+
+    // セッションキャッシュ（ページ内で再利用）
+    let cachedYoloSession = null;
+
+    /**
+     * ログ出力関数
+     * コンソールと画面両方に出力する
+     */
+    function log(msg) {
+      logText += msg + '\n';
+      logEl.textContent = logText;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
+    }
+
+    /**
+     * メモリ使用量を取得（Chrome のみ対応）
+     * 他のブラウザでは 'N/A' を返す
+     */
+    function getMemoryMB() {
+      if (performance.memory) {
+        return (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+      }
+      return 'N/A';
+    }
+
+    /**
+     * ステータス表示を更新
+     * @param {string} id - 対象要素のID
+     * @param {boolean} success - 成功/失敗
+     * @param {string} text - 表示テキスト
+     */
+    function setStatus(id, success, text) {
+      const el = document.getElementById(id);
+      el.className = 'status ' + (success ? 'success' : 'error');
+      el.textContent = text;
+    }
+
+    /**
+     * YOLOv8-nano 動作検証
+     *
+     * MRZ 領域検出用のオブジェクト検出モデル。
+     * 毎フレーム（約30fps = 33ms間隔）での実行を想定。
+     *
+     * 入力: [1, 3, 320, 320] (NCHW形式、RGB画像)
+     * 出力: [1, 84, 2100] (84 = 4座標 + 80クラス確率)
+     */
+    async function testYolo() {
+      log('\n[1/2] YOLOv8-nano WASM 検証 (Detection)');
+      log('─'.repeat(40));
+
+      const memBefore = parseFloat(getMemoryMB()) || 0;
+      const results = { success: false, loadTime: 0, inferTime: 0, memDelta: 0 };
+
+      try {
+        // モデルロード（初回のみ、以降はキャッシュされる）
+        log('  モデルロード中...');
+        const loadStart = performance.now();
+        // セッションをキャッシュして再利用（実際のアプリと同じ動作）
+        if (!cachedYoloSession) {
+          cachedYoloSession = await ort.InferenceSession.create(
+            './models/yolov8n.onnx',
+            {
+              executionProviders: ['wasm'],
+              graphOptimizationLevel: 'all'
+            }
+          );
+          results.loadTime = performance.now() - loadStart;
+          log(`  ✓ ロード完了: ${results.loadTime.toFixed(0)}ms (初回)`);
+        } else {
+          results.loadTime = performance.now() - loadStart;
+          log(`  ✓ キャッシュ済み: ${results.loadTime.toFixed(0)}ms`);
+        }
+        const session = cachedYoloSession;
+
+        // 入出力情報表示
+        log(`  入力: ${session.inputNames.join(', ')}`);
+        log(`  出力: ${session.outputNames.join(', ')}`);
+
+        // ダミー入力で推論テスト（実際はカメラフレームを入力）
+        // 320x320 に縮小して高速化（MRZ検出には十分な解像度）
+        const inputShape = [1, 3, 320, 320];
+        const inputData = new Float32Array(1 * 3 * 320 * 320).fill(0.5);
+        const inputTensor = new ort.Tensor('float32', inputData, inputShape);
+
+        log('  推論実行中...');
+        const inferStart = performance.now();
+        const output = await session.run({ images: inputTensor });
+        results.inferTime = performance.now() - inferStart;
+
+        // 出力形状確認
+        const outputTensor = output[session.outputNames[0]];
+        log(`  ✓ 推論完了: ${results.inferTime.toFixed(0)}ms`);
+        log(`  出力形状: [${outputTensor.dims.join(', ')}]`);
+
+        const memAfter = parseFloat(getMemoryMB()) || 0;
+        results.memDelta = memAfter - memBefore;
+        results.success = true;
+        log('  ✅ YOLOv8-nano: SUCCESS');
+
+      } catch (error) {
+        log(`  ❌ エラー: ${error.message}`);
+        if (error.message.includes('Could not fetch')) {
+          log('  → models/yolov8n.onnx が見つかりません');
+          log('  → python scripts/export_yolo.py を実行してください');
+        }
+        results.success = false;
+      }
+
+      return results;
+    }
+
+    /**
+     * Tesseract.js 動作検証
+     *
+     * MRZ 文字認識用の OCR エンジン。
+     * YOLOv8 で検出した MRZ 領域に対してのみ実行（ワンショット）。
+     *
+     * 特徴:
+     * - ブラウザネイティブ WASM 実装
+     * - MRZ に特化した設定可能（whitelist, PSM）
+     * - 初回ロードは遅いが、2回目以降は高速
+     */
+    async function testTesseract() {
+      log('\n[2/2] Tesseract.js WASM 検証 (Recognition)');
+      log('─'.repeat(40));
+
+      const memBefore = parseFloat(getMemoryMB()) || 0;
+      const results = { success: false, loadTime: 0, inferTime: 0, memDelta: 0 };
+
+      try {
+        // Worker 初期化（初回のみ遅い、以降はキャッシュ）
+        log('  Tesseract Worker 初期化中...');
+        const loadStart = performance.now();
+
+        const worker = await Tesseract.createWorker('eng', 1, {
+          logger: m => {
+            // ロード進捗を表示
+            if (m.status === 'loading tesseract core') {
+              log('    → Tesseract コアロード中...');
+            } else if (m.status === 'initializing api') {
+              log('    → API 初期化中...');
+            }
+          }
+        });
+
+        results.loadTime = performance.now() - loadStart;
+        log(`  ✓ Worker 初期化完了: ${results.loadTime.toFixed(0)}ms`);
+
+        // MRZ 認識用パラメータ設定
+        // PSM 6: 単一のテキストブロックとして認識
+        // Whitelist: MRZ で使用される文字のみ
+        await worker.setParameters({
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+          tessedit_pageseg_mode: '6'
+        });
+        log('  MRZ 用パラメータ設定完了');
+
+        // テスト用のダミー MRZ 画像を生成（Canvas で作成）
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 48;
+        const ctx = canvas.getContext('2d');
+
+        // 白背景
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 320, 48);
+
+        // MRZ 風のテキストを描画（実際はカメラからのクロップ画像）
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 16px monospace';
+        ctx.fillText('P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<', 5, 20);
+        ctx.fillText('L898902C36UTO7408122F1204159<<<<<<<<<6', 5, 40);
+
+        log('  テスト画像生成完了 (320x48 MRZ風)');
+
+        // OCR 実行
+        log('  認識実行中...');
+        const inferStart = performance.now();
+        const { data: { text } } = await worker.recognize(canvas);
+        results.inferTime = performance.now() - inferStart;
+
+        log(`  ✓ 認識完了: ${results.inferTime.toFixed(0)}ms`);
+        log(`  認識結果: ${text.replace(/\n/g, ' ').substring(0, 50)}...`);
+
+        // Worker 終了（実際の実装ではキャッシュして再利用）
+        await worker.terminate();
+
+        const memAfter = parseFloat(getMemoryMB()) || 0;
+        results.memDelta = memAfter - memBefore;
+        results.success = true;
+        log('  ✅ Tesseract.js: SUCCESS');
+
+      } catch (error) {
+        log(`  ❌ エラー: ${error.message}`);
+        console.error(error);
+        results.success = false;
+      }
+
+      return results;
+    }
+
+    /**
+     * 全テスト実行
+     *
+     * イベント駆動パイプラインの検証:
+     * 1. YOLOv8-nano で MRZ 領域を検出
+     * 2. 安定検出を確認（実装時は3フレーム連続など）
+     * 3. Tesseract.js で MRZ 文字を認識
+     */
+    async function runAllTests() {
+      const btn = document.getElementById('run-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ 検証中...';
+
+      logText = '';
+      log('='.repeat(50));
+      log('MRZ WASM PoC 検証開始');
+      log('='.repeat(50));
+      log(`ブラウザ: ${navigator.userAgent.split(' ').pop()}`);
+      log(`初期メモリ: ${getMemoryMB()} MB`);
+      log(`CPUコア数: ${navigator.hardwareConcurrency || 'N/A'}`);
+      log('');
+      log('アーキテクチャ:');
+      log('  Detection: YOLOv8-nano (毎フレーム ~100ms)');
+      log('  Recognition: Tesseract.js (安定検出時のみ)');
+
+      // YOLOv8-nano テスト
+      const yoloResults = await testYolo();
+      document.getElementById('yolo-load').textContent = `${yoloResults.loadTime.toFixed(0)}ms`;
+      document.getElementById('yolo-infer').textContent = `${yoloResults.inferTime.toFixed(0)}ms`;
+      const yoloOk = yoloResults.success && yoloResults.inferTime < 200;
+      setStatus('yolo-status', yoloOk,
+        yoloOk ? `✅ ${yoloResults.inferTime.toFixed(0)}ms` : `❌ ${yoloResults.inferTime.toFixed(0)}ms`);
+
+      // Tesseract.js テスト
+      const tesseractResults = await testTesseract();
+      document.getElementById('tesseract-load').textContent = `${tesseractResults.loadTime.toFixed(0)}ms`;
+      document.getElementById('tesseract-infer').textContent = `${tesseractResults.inferTime.toFixed(0)}ms`;
+      const tesseractOk = tesseractResults.success && tesseractResults.inferTime < 500;
+      setStatus('tesseract-status', tesseractOk,
+        tesseractOk ? `✅ ${tesseractResults.inferTime.toFixed(0)}ms` : `❌ ${tesseractResults.inferTime.toFixed(0)}ms`);
+
+      // 合計計算（ワンショットパイプライン）
+      const totalLoad = yoloResults.loadTime + tesseractResults.loadTime;
+      const totalInfer = yoloResults.inferTime + tesseractResults.inferTime;
+      document.getElementById('total-load').textContent = `${totalLoad.toFixed(0)}ms`;
+      document.getElementById('total-infer').textContent = `${totalInfer.toFixed(0)}ms`;
+      document.getElementById('total-mem').textContent = `${getMemoryMB()}MB`;
+
+      // 速度判定
+      const speedOk = totalInfer < 700;
+      setStatus('speed-status', speedOk,
+        speedOk ? `✅ ${totalInfer.toFixed(0)}ms` : `❌ ${totalInfer.toFixed(0)}ms`);
+
+      // メモリ判定
+      const memMB = parseFloat(getMemoryMB()) || 0;
+      const memOk = memMB < 500 || getMemoryMB() === 'N/A';
+      setStatus('memory-status', memOk,
+        memOk ? `✅ ${getMemoryMB()}MB` : `❌ ${memMB}MB`);
+
+      // 総合判定
+      log('\n' + '='.repeat(50));
+      log('検証結果サマリー');
+      log('='.repeat(50));
+
+      const allSuccess = yoloResults.success && tesseractResults.success && speedOk;
+      if (allSuccess) {
+        log('🎉 VERDICT: GO - 本格実装に進めます');
+        log('');
+        log('次のステップ:');
+        log('  1. MIDV-500 から MRZ アノテーション生成');
+        log('  2. YOLOv8-nano 転移学習（MRZ検出用）');
+        log('  3. イベント駆動パイプライン実装');
+      } else {
+        log('⚠️  VERDICT: NO-GO - 代替案を検討してください');
+        if (!yoloResults.success) log('  → YOLOv8: TFLite.js を検討');
+        if (!tesseractResults.success) log('  → Tesseract: 別 OCR を検討');
+        if (!speedOk) log('  → 速度: WebGPU or サーバー推論を検討');
+      }
+
+      log(`\n最終メモリ: ${getMemoryMB()} MB`);
+
+      btn.disabled = false;
+      btn.textContent = '🔄 再実行';
+    }
+
+    // グローバルに公開
+    window.runAllTests = runAllTests;
+  </script>
+</body>
+</html>

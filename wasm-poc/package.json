@@ -1,0 +1,17 @@
+{
+  "name": "mrz-wasm-poc",
+  "version": "0.1.0",
+  "description": "MRZ OCR WASM PoC - YOLOv8-nano + Tesseract.js on browser",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "serve": "serve public -l 3000",
+    "export:yolo": "python scripts/export_yolo.py"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.17.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

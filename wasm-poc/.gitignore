@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Models (large files)
+models/
+public/models/
+*.pt
+*.onnx
