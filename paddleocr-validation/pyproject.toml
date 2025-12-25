@@ -1,0 +1,20 @@
+[project]
+name = "mrz-ocr-validation"
+version = "0.1.0"
+description = "MRZ OCR validation for evaluating generic OCR engines on OCR-B font"
+readme = "design.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "mrz>=0.6.2",
+    "numpy>=1.26.0,<2.0",  # PaddleOCRはnumpy 2.xと互換性問題あり
+    "opencv-python-headless>=4.8.0",  # headless版でGUI依存なし
+    "paddlepaddle>=2.6.0",  # PaddleOCRの実行に必要
+    "paddleocr>=2.9.0",
+    "pillow>=10.0.0",
+    "rapidfuzz>=3.0.0",
+    "tqdm>=4.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
