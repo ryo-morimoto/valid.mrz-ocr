@@ -1,0 +1,3 @@
+# データセット（大容量）
+data/*
+!data/.gitkeep
