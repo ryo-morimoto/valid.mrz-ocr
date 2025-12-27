@@ -1,0 +1,10 @@
+{
+  "name": "crnn-wasm-test",
+  "version": "1.0.0",
+  "description": "CRNN MRZ OCR WASM speed test",
+  "type": "module",
+  "scripts": {
+    "serve": "node server.mjs"
+  },
+  "dependencies": {}
+}
