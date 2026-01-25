@@ -1,0 +1,14 @@
+{
+  "id": "ryozom/train-crnn",
+  "title": "train-crnn",
+  "code_file": "train_crnn.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "true",
+  "keywords": ["mrz", "ocr", "crnn"],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": []
+}
