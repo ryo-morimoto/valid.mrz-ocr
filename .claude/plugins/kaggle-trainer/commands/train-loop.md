@@ -1,7 +1,7 @@
 ---
 name: train-loop
 description: CER目標達成まで訓練→分析→改善→再実行を自動で回す
-allowed_tools:
+allowed-tools:
   - Task
   - Bash
   - Read

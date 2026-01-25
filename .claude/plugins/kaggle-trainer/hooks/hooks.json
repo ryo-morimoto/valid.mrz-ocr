@@ -1,0 +1,34 @@
+{
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": {
+        "tool": "Bash",
+        "args": {
+          "command": ".*git commit.*crnn.*"
+        }
+      },
+      "hooks": [
+        {
+          "type": "prompt",
+          "prompt": "CRNN関連のコミットです。コミットメッセージに「仮説:」が含まれているか確認してください。含まれていない場合はBLOCKし、以下の形式を案内してください:\n\nfix(crnn): <意図を1行で>\n\n仮説: <この変更で期待される効果>\n変更:\n- <変更点1>\n- <変更点2>"
+        }
+      ]
+    },
+    {
+      "event": "PostToolUse",
+      "matcher": {
+        "tool": "Bash",
+        "args": {
+          "command": ".*kaggle kernels push.*"
+        }
+      },
+      "hooks": [
+        {
+          "type": "prompt",
+          "prompt": "Kaggle kernelがpushされました。crnn/logs/iteration_history.md にイテレーション情報を追記してください。コミットハッシュ、コミットメッセージ、タイムスタンプを記録し、Statusを「Running on Kaggle」としてください。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,9 @@
 ---
 name: worker
 description: 改善計画に従いnotebookを編集し、Kaggleで実行する
-tools:
+model: inherit
+color: green
+allowed-tools:
   - Bash
   - Read
   - Edit

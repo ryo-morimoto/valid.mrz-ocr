@@ -1,7 +1,9 @@
 ---
 name: reviewer
 description: OpenAI Codex CLIで改善計画をレビューする
-tools:
+model: inherit
+color: yellow
+allowed-tools:
   - Bash
   - Read
 ---

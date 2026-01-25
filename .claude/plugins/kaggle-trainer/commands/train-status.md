@@ -1,7 +1,7 @@
 ---
 name: train-status
 description: 現在の訓練状態とイテレーション履歴を表示
-allowed_tools:
+allowed-tools:
   - Bash
   - Read
 ---

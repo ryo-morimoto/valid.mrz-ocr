@@ -1,8 +1,5 @@
 {
   "name": "kaggle-trainer",
   "version": "1.0.0",
-  "description": "Automated Kaggle CRNN training loop with Codex review",
-  "commands": "commands",
-  "agents": "agents",
-  "hooks": "hooks"
+  "description": "Automated Kaggle CRNN training loop with Codex review"
 }

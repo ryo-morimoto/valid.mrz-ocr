@@ -1,7 +1,9 @@
 ---
 name: planner
 description: Kaggle訓練結果を直接読み、分析と改善計画を一括で作成する
-tools:
+model: inherit
+color: cyan
+allowed-tools:
   - Bash
   - Read
   - Grep
