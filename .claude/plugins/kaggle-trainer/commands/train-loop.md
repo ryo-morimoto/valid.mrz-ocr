@@ -32,24 +32,53 @@ max_iterations = args.max_iterations or 10
 
 while iteration <= max_iterations:
 
-    ## Step 1: 結果取得
-    最新のKaggle kernel出力を取得:
+    ## Step 1: Kernel状態確認
     ```bash
-    kaggle kernels output ryo-morimoto/train-crnn -p crnn/outputs/latest/
+    uvx kaggle kernels status ryozom/train-crnn
     ```
 
-    ## Step 2: CER確認
-    training_log.csv または出力ログから最新CERを確認。
+    ## Step 2: 状態に応じて分岐
+
+    ### If RUNNING:
+    バックグラウンドでポーリング開始:
+    ```bash
+    # run_in_background: true で実行
+    while true; do
+      result=$(uvx kaggle kernels status ryozom/train-crnn 2>&1)
+      echo "$(date '+%H:%M:%S'): $result"
+      case "$result" in
+        *COMPLETE*) echo "TRAINING_COMPLETE"; break ;;
+        *ERROR*|*CANCEL*) echo "TRAINING_FAILED"; break ;;
+      esac
+      sleep 300  # 5分間隔
+    done
+    ```
+    → 完了通知を待つ
+
+    ### If COMPLETE:
+    続行
+
+    ### If ERROR:
+    エラー報告して終了
+
+    ## Step 3: 結果取得
+    ```bash
+    mkdir -p crnn/outputs/latest
+    uvx kaggle kernels output ryozom/train-crnn -p crnn/outputs/latest/ --force
+    ```
+
+    ## Step 4: CER確認
+    training_log.csv から最新CERを確認。
     if CER <= target_cer:
         SUCCESS: 「CER {value}% 達成！{iteration}回のイテレーションで完了」
         break
 
-    ## Step 3: Planner起動
+    ## Step 5: Planner起動
     Task(planner)を呼び出し:
     - 入力: crnn/outputs/latest/, crnn/notebooks/train_crnn.ipynb
     - 出力: 改善計画
 
-    ## Step 4: Reviewer起動
+    ## Step 6: Reviewer起動
     Task(reviewer)を呼び出し:
     - 入力: 改善計画
     - 出力: レビュー結果
@@ -57,13 +86,10 @@ while iteration <= max_iterations:
     if レビュー結果 == NEEDS_REVISION:
         plannerに差し戻し（最大3回）
 
-    ## Step 5: Worker起動
+    ## Step 7: Worker起動
     Task(worker)を呼び出し:
     - 入力: 承認された改善計画, iteration番号
-    - 出力: 実行結果
-
-    ## Step 6: 待機
-    Worker内でKaggle完了を待機（最大3時間）
+    - 出力: ノートブック更新 + Kaggle push
 
     iteration++
 

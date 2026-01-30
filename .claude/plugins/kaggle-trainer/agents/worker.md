@@ -7,6 +7,8 @@ allowed-tools:
   - Bash
   - Read
   - Edit
+  - NotebookEdit
+  - NotebookRead
 ---
 
 # Worker Agent
@@ -50,29 +52,27 @@ EOF
 ### Step 3: Kaggle Push
 ```bash
 cd crnn/notebooks
-kaggle kernels push
+uvx kaggle kernels push
 ```
 
 ### Step 4: 完了待機
+バックグラウンドでポーリング（`run_in_background: true`）:
 ```bash
-# ステータス確認ループ
 while true; do
-  status=$(kaggle kernels status ryo-morimoto/train-crnn | grep -o 'complete\|running\|error')
-  if [ "$status" = "complete" ]; then
-    echo "Training complete"
-    break
-  elif [ "$status" = "error" ]; then
-    echo "Training failed"
-    exit 1
-  fi
-  echo "Status: $status, waiting 60s..."
-  sleep 60
+  result=$(uvx kaggle kernels status ryozom/train-crnn 2>&1)
+  echo "$(date '+%H:%M:%S'): $result"
+  case "$result" in
+    *COMPLETE*) echo "TRAINING_COMPLETE"; break ;;
+    *ERROR*|*CANCEL*) echo "TRAINING_FAILED"; exit 1 ;;
+  esac
+  sleep 300  # 5分間隔
 done
 ```
 
 ### Step 5: 結果取得
 ```bash
-kaggle kernels output ryo-morimoto/train-crnn -p crnn/outputs/iteration_N/
+mkdir -p crnn/outputs/iteration_N
+uvx kaggle kernels output ryozom/train-crnn -p crnn/outputs/iteration_N/ --force
 ```
 
 ## 出力形式

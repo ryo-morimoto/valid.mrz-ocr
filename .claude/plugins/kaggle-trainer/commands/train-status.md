@@ -8,28 +8,42 @@ allowed-tools:
 
 # /train-status
 
-現在のトレーニング状態を表示します。
+## 実行すること
 
-## 使用方法
-```
-/train-status
-```
-
-## 表示内容
-
-### 1. Kaggle Kernel Status
+### Step 1: Statusを確認
 ```bash
-kaggle kernels status ryo-morimoto/train-crnn
+uvx kaggle kernels status ryozom/train-crnn
 ```
 
-### 2. Latest Metrics
-最新の `crnn/outputs/latest/training_log.csv` から:
-- Current CER
-- Best CER (and epoch)
-- Total epochs trained
+### Step 2: Statusに応じて分岐
 
-### 3. Iteration History
-`crnn/logs/iteration_history.md` から直近5回のイテレーションを表示
+#### If COMPLETE:
+1. 出力をダウンロード:
+```bash
+mkdir -p crnn/outputs/latest
+uvx kaggle kernels output ryozom/train-crnn -p crnn/outputs/latest/ --force
+```
+
+2. training_log.csv をパースしてメトリクスを表示:
+   - 最終epoch の CER
+   - Best CER とそのepoch
+   - 総epoch数
+
+3. iteration_history.md を読んで直近イテレーションを表示
+
+#### If RUNNING:
+1. 利用可能な出力ファイルを確認:
+```bash
+uvx kaggle kernels files ryozom/train-crnn
+```
+
+2. iteration_history.md を読んで現在の状態を表示
+
+3. 「実行中。完了を待ってください。」と報告
+
+#### If ERROR:
+1. エラー状態を報告
+2. Kaggle Web UI での確認を促す: https://www.kaggle.com/code/ryozom/train-crnn
 
 ## 出力形式
 
@@ -37,24 +51,16 @@ kaggle kernels status ryo-morimoto/train-crnn
 ## Training Status
 
 ### Kaggle Kernel
-- Status: running / complete / queued / error
-- Started: YYYY-MM-DD HH:MM
-- Elapsed: Xh Xm
+- Status: [status]
+- [If complete: メトリクス表示]
 
-### Current Metrics
+### Metrics (if available)
 | Metric | Value |
 |--------|-------|
-| Current CER | X.X% |
+| Final CER | X.X% |
 | Best CER | X.X% (epoch N) |
 | Epochs | N |
 
 ### Recent Iterations
-| # | Date | CER Change | Result |
-|---|------|------------|--------|
-| 5 | 01-25 | 5.2% → 3.1% | Improved |
-| 4 | 01-24 | 5.5% → 5.2% | Improved |
-| ... |
-
-### Next Action
-[推奨アクション]
+[iteration_history.md の内容]
 ```

@@ -24,5 +24,5 @@ fix(crnn): <意図>
 ```
 
 ### Kaggle Kernel
-- Kernel path: `ryo-morimoto/train-crnn`
+- Kernel path: `ryozom/train-crnn`
 - Output files: `training_log.csv`, `best_model.pth`, `mrz_crnn.onnx`
