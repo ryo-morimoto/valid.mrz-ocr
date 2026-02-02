@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 3
+names: ['MRZ_P', 'mrz1', 'mrz2']
+
+roboflow:
+  workspace: my-test-tkkjy
+  project: mrz_passport_dataset-7rzth
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/my-test-tkkjy/mrz_passport_dataset-7rzth/dataset/1

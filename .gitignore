@@ -1,3 +1,11 @@
 # データセット（大容量）
 data/*
 !data/.gitkeep
+
+# YOLO
+yolo/data/MRZ_Passport_dataset/train/
+yolo/data/MRZ_Passport_dataset/valid/
+yolo/data/MRZ_Passport_dataset/test/
+yolo/outputs/*.pt
+yolo/outputs/*.onnx
+yolov8n.pt

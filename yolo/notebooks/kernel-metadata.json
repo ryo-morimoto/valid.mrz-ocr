@@ -1,0 +1,14 @@
+{
+  "id": "ryozom/train-yolo-mrz",
+  "title": "train-yolo-mrz",
+  "code_file": "train_yolo.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "true",
+  "keywords": ["mrz", "yolo", "detection"],
+  "dataset_sources": ["ryozom/mrz-passport-dataset"],
+  "kernel_sources": [],
+  "competition_sources": []
+}

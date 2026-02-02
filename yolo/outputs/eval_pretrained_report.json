@@ -1,0 +1,21 @@
+{
+  "split": "test",
+  "total_images": 57,
+  "images_with_gt": 57,
+  "images_no_detection": 2,
+  "mean_iou": 0.012165448827685395,
+  "median_iou": 0.0,
+  "iou_gt_0.5": 0,
+  "iou_gt_0.5_rate": 0.0,
+  "iou_gt_0.3": 0,
+  "iou_gt_0.3_rate": 0.0,
+  "matched_coco_classes": {
+    "person": 5,
+    "laptop": 4,
+    "book": 3
+  },
+  "no_detection_images_sample": [
+    "21_jpg.rf.26ec63aaa9bbc4df05ee85517db7ce3c.jpg",
+    "16_jpg.rf.bf4ec75e3ac25c04064987a55da10579.jpg"
+  ]
+}
