@@ -8,7 +8,7 @@
   "enable_gpu": "true",
   "enable_internet": "true",
   "keywords": ["mrz", "ocr", "crnn"],
-  "dataset_sources": [],
+  "dataset_sources": ["ryozom/midv500-mrz", "ryozom/mrz-midv2019"],
   "kernel_sources": [],
   "competition_sources": []
 }

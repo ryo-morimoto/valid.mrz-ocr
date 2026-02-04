@@ -8,59 +8,84 @@ allowed-tools:
 
 # /train-status
 
+## 引数
+- `--model`: モデル名（`crnn` または `yolo`、**必須**）
+
+## 使用方法
+```
+/train-status --model crnn
+/train-status --model yolo
+```
+
+## モデル設定
+
+| 設定 | crnn | yolo |
+|------|------|------|
+| kernel | `ryozom/train-crnn` | `ryozom/train-yolo-mrz` |
+| output_dir | `crnn/outputs` | `yolo/outputs` |
+| metric | `test_cer` (lower is better) | `metrics/mAP50(B)` (higher is better) |
+| target | `< 1.0` | `> 95.0` |
+| backlog | `docs/crnn/improvement-backlog.md` | `docs/yolo/improvement-backlog.md` |
+| experiment_log | `docs/crnn/experiment-log.md` | `docs/yolo/experiment-log.md` |
+| kaggle_cli | `~/.local/bin/kaggle` | `~/.local/bin/kaggle` |
+
 ## 実行すること
 
-### Step 1: Statusを確認
+### Step 1: Status を確認
 ```bash
-uvx kaggle kernels status ryozom/train-crnn
+{kaggle_cli} kernels status {kernel}
 ```
 
-### Step 2: Statusに応じて分岐
+### Step 2: Status に応じて分岐
 
 #### If COMPLETE:
-1. 出力をダウンロード:
+1. 最新出力をダウンロード:
 ```bash
-mkdir -p crnn/outputs/latest
-uvx kaggle kernels output ryozom/train-crnn -p crnn/outputs/latest/ --force
+mkdir -p {output_dir}/latest
+{kaggle_cli} kernels output {kernel} -p {output_dir}/latest/ --force
 ```
 
-2. training_log.csv をパースしてメトリクスを表示:
-   - 最終epoch の CER
-   - Best CER とそのepoch
-   - 総epoch数
+2. メトリクスログをパース:
+   - **crnn**: `training_log.csv` → Best CER, 最終 CER, 総 epoch 数
+   - **yolo**: `results.csv` → Best mAP@0.5, 最終 mAP, 総 epoch 数
 
-3. iteration_history.md を読んで直近イテレーションを表示
+3. experiment-log.md を読んで直近の実験結果を表示
+
+4. backlog の次の未着手項目を表示
 
 #### If RUNNING:
-1. 利用可能な出力ファイルを確認:
-```bash
-uvx kaggle kernels files ryozom/train-crnn
-```
-
-2. iteration_history.md を読んで現在の状態を表示
-
-3. 「実行中。完了を待ってください。」と報告
+1. 「実行中。完了を待ってください。」と報告
+2. experiment-log.md の最新エントリを表示
 
 #### If ERROR:
 1. エラー状態を報告
-2. Kaggle Web UI での確認を促す: https://www.kaggle.com/code/ryozom/train-crnn
+2. Kaggle Web UI での確認を促す
 
 ## 出力形式
 
 ```markdown
-## Training Status
+## Training Status: {model}
 
 ### Kaggle Kernel
-- Status: [status]
-- [If complete: メトリクス表示]
+- Kernel: {kernel}
+- Status: {status}
 
 ### Metrics (if available)
 | Metric | Value |
 |--------|-------|
-| Final CER | X.X% |
-| Best CER | X.X% (epoch N) |
+| Best {metric} | X.X% (epoch N) |
+| Final {metric} | X.X% |
 | Epochs | N |
+| Target | {target} |
+| Gap | X.X% |
 
-### Recent Iterations
-[iteration_history.md の内容]
+### Backlog Progress
+- Total: N items
+- Completed: N
+- In Progress: N
+- Remaining: N
+- **Next**: #{N} {手法名}
+
+### Recent Experiments
+[experiment-log.md の直近 3 エントリ]
 ```

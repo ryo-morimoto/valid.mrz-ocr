@@ -5,13 +5,13 @@
       "matcher": {
         "tool": "Bash",
         "args": {
-          "command": ".*git commit.*crnn.*"
+          "command": ".*git commit.*(crnn|yolo).*"
         }
       },
       "hooks": [
         {
           "type": "prompt",
-          "prompt": "CRNN関連のコミットです。コミットメッセージに「仮説:」が含まれているか確認してください。含まれていない場合はBLOCKし、以下の形式を案内してください:\n\nfix(crnn): <意図を1行で>\n\n仮説: <この変更で期待される効果>\n変更:\n- <変更点1>\n- <変更点2>"
+          "prompt": "モデル関連のコミットです。コミットメッセージに「バックログ:」が含まれているか確認してください。含まれていない場合はBLOCKし、以下の形式を案内してください:\n\nfix({model}): <意図を1行で>\n\nバックログ: #{N} <手法名>\n仮説: <この変更で期待される効果>\n変更:\n- <変更点1>\n- <変更点2>"
         }
       ]
     },
@@ -26,7 +26,7 @@
       "hooks": [
         {
           "type": "prompt",
-          "prompt": "Kaggle kernelがpushされました。crnn/logs/iteration_history.md にイテレーション情報を追記してください。コミットハッシュ、コミットメッセージ、タイムスタンプを記録し、Statusを「Running on Kaggle」としてください。"
+          "prompt": "Kaggle kernel が push されました。対象モデル (crnn/yolo) の experiment-log に新エントリが追加されているか確認してください。追加されていない場合は docs/{model}/experiment-log.md にスケルトンエントリを追記してください。"
         }
       ]
     }

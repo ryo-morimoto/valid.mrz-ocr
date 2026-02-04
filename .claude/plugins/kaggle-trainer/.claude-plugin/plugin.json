@@ -1,5 +1,5 @@
 {
   "name": "kaggle-trainer",
-  "version": "1.0.0",
-  "description": "Automated Kaggle CRNN training loop with Codex review"
+  "version": "2.0.0",
+  "description": "Backlog-driven Kaggle training loop for CRNN/YOLO models with systematic improvement tracking"
 }
